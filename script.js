@@ -22,6 +22,8 @@ let modelNames = {
   'mistralai/Mixtral-8x7B-Instruct-v0.1': 'Mistral AI',
   'meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo': 'Meta Llama'
 }
+let currentAnimation = null;
+let currentAIMessage = null;
 
 // Function to add the 'scrolling' class when scrolling
 function handleScroll() {
@@ -79,6 +81,12 @@ async function sendMessage() {
   const userMessage = userInput.value.trim();
   if (!userMessage || isWaitingForResponse) return;
 
+  // Reset previous animation
+  if (currentAnimation) {
+    clearTimeout(currentAnimation);
+    currentAIMessage?.remove();
+  }
+
   addUserMessage(userMessage);
   userInput.value = '';
   isWaitingForResponse = true;
@@ -123,15 +131,20 @@ async function sendMessage() {
     let buffer = '';
     let index = 0;
     let isInTag = false;
-    let targetHeight = initialHeight - 18*1.4;
+    // let targetHeight = initialHeight - 18*1.4;
 
     setTimeout(() => {
       typingIndicator.remove();
       messageContent.style.padding = '0 18px 24px';
 
+      // Store reference to current message and animation
+      currentAIMessage = aiMessage;
+
       function typeCharacter() {
         if (index >= rawText.length) {
           isWaitingForResponse = false;
+          currentAnimation = null;
+          currentAIMessage = null;
           return;
         }
 
@@ -149,9 +162,9 @@ async function sendMessage() {
           // Calculate height in line-height increments
           const contentHeight = messageContent.scrollHeight - 18*1.4;
           const lineCount = parseFloat((contentHeight - paddingVert) / lineHeight);
-          const newTargetHeight = lineCount * lineHeight + paddingVert;
+          const targetHeight = lineCount * lineHeight + paddingVert;
           
-          messageContent.style.height = `${newTargetHeight}px`;
+          messageContent.style.height = `${targetHeight}px`;
 
           // Smart scrolling
           if (chatBox.scrollHeight - chatBox.clientHeight <= chatBox.scrollTop + 100) {
@@ -160,7 +173,7 @@ async function sendMessage() {
         }
 
         index++;
-        setTimeout(typeCharacter, isInTag ? 0 : 20);
+        currentAnimation = setTimeout(typeCharacter, isInTag ? 0 : 20);
       }
 
       // Start animation
@@ -228,11 +241,33 @@ aiName.addEventListener('click', () => {
 // Handle model selection
 dropdownContent.addEventListener('click', (e) => {
   if (e.target.tagName === 'DIV') {
-    selectedModel = e.target.getAttribute('data-model');
-    currentModel.textContent = e.target.textContent; // Update the displayed model name
-    saveSelectedModel(selectedModel); // Save the selected model to localStorage
+    // Cancel ongoing animation
+    if (currentAnimation) {
+      clearTimeout(currentAnimation);
+      currentAnimation = null;
+    }
+    
+    // Remove any partial AI message
+    if (currentAIMessage) {
+      currentAIMessage.remove();
+      currentAIMessage = null;
+    }
+    
+    // Reset states
+    isWaitingForResponse = false;
+
+    // Close the dropdown immediately after selection
     dropdownContent.style.display = 'none';
+    
+    // Update model
+    selectedModel = e.target.dataset.model;
+    currentModel.textContent = e.target.textContent;
+    saveSelectedModel(selectedModel);
     chatBox.innerHTML = '';
+    
+    // Enable input immediately
+    userInput.disabled = false;
+    sendIcon.style.display = 'none';
   }
 });
 
@@ -284,6 +319,7 @@ startChatBtn.addEventListener('click', () => {
   welcomeScreen.style.opacity = '0'; // Fade out the welcome screen
   setTimeout(() => {
     welcomeScreen.style.display = 'none'; // Hide the welcome screen
+    userInput.focus();
   }, 500); // Match the duration of the opacity transition
   enterFullscreen();
 });

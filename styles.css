@@ -571,10 +571,6 @@ body.light-mode .message-content pre {
   color: #e0e0e0;
 }
 
-body.light-mode .message-content code {
-  color: #1c1c1e;
-}
-
 /* Responsive Design */
 @media (max-width: 600px) {
   .message-content {
